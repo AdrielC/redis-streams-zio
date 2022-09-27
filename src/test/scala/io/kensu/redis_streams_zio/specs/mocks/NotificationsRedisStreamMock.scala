@@ -1,7 +1,6 @@
 package io.kensu.redis_streams_zio.specs.mocks
 
 import io.kensu.redis_streams_zio.config.{StreamConsumerName, StreamGroupName, StreamKey}
-import io.kensu.redis_streams_zio.redis.streams.NotificationsRedisStream
 import io.kensu.redis_streams_zio.redis.streams.{
   CreateGroupStrategy,
   ListGroupStrategy,
@@ -10,11 +9,12 @@ import io.kensu.redis_streams_zio.redis.streams.{
   StreamInstance
 }
 import org.redisson.api.{PendingEntry, StreamGroup, StreamMessageId}
-import zio.test.mock.*
+import zio.test.mock._
 import zio.{Chunk, Has, NonEmptyChunk, Task, UIO, URLayer, ZLayer}
 import zio.duration.Duration
 
-object NotificationsRedisStreamMock extends Mock[Has[RedisStream[StreamInstance.Notifications]]]:
+object NotificationsRedisStreamMock extends Mock[Has[RedisStream[StreamInstance.Notifications]]] {
+
 
   object StreamInstance extends Effect[Unit, Nothing, StreamInstance]
 
@@ -60,23 +60,23 @@ object NotificationsRedisStreamMock extends Mock[Has[RedisStream[StreamInstance.
             proxy(CreateGroup, groupName, strategy)
 
           override def readGroup(
-            groupName: StreamGroupName,
-            consumerName: StreamConsumerName,
-            count: Int,
-            timeout: Duration,
-            strategy: ListGroupStrategy
-          ): Task[Chunk[ReadGroupResult]] =
+                                  groupName: StreamGroupName,
+                                  consumerName: StreamConsumerName,
+                                  count: Int,
+                                  timeout: Duration,
+                                  strategy: ListGroupStrategy
+                                ): Task[Chunk[ReadGroupResult]] =
             proxy(ReadGroup, groupName, consumerName, count, timeout, strategy)
 
           override def ack(groupName: StreamGroupName, ids: NonEmptyChunk[StreamMessageId]): Task[Long] =
             proxy(Ack, groupName, ids)
 
           override def fastClaim(
-            groupName: StreamGroupName,
-            consumerName: StreamConsumerName,
-            maxIdleTime: Duration,
-            ids: NonEmptyChunk[StreamMessageId]
-          ): Task[Chunk[StreamMessageId]] =
+                                  groupName: StreamGroupName,
+                                  consumerName: StreamConsumerName,
+                                  maxIdleTime: Duration,
+                                  ids: NonEmptyChunk[StreamMessageId]
+                                ): Task[Chunk[StreamMessageId]] =
             proxy(FastClaim, groupName, consumerName, maxIdleTime, ids)
 
           override def listPending(groupName: StreamGroupName, count: Int): Task[Chunk[PendingEntry]] =
@@ -87,3 +87,4 @@ object NotificationsRedisStreamMock extends Mock[Has[RedisStream[StreamInstance.
         }
       }
     }
+}

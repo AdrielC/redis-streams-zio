@@ -3,22 +3,22 @@ package io.kensu.redis_streams_zio.services.producers
 import java.util.concurrent.TimeUnit
 
 import io.kensu.redis_streams_zio.config.{StreamKey, StreamName}
-import io.kensu.redis_streams_zio.redis.streams.NotificationsRedisStream
 import io.kensu.redis_streams_zio.redis.streams.{RedisStream, StreamInstance}
 import io.kensu.redis_streams_zio.specs.mocks.NotificationsRedisStreamMock
 import org.redisson.api.StreamMessageId
 import zio.{Chunk, Has, ULayer, ZLayer}
-import zio.clock.*
-import zio.duration.*
+import zio.clock._
+import zio.duration._
 import zio.logging.Logging
-import zio.test.*
-import zio.test.Assertion.*
+import zio.test._
+import zio.test.Assertion._
 import zio.test.environment.{TestClock, TestEnvironment}
-import zio.test.mock.Expectation.*
+import zio.test.mock.Expectation._
 
-object EventProducerSpec extends DefaultRunnableSpec:
+object EventProducerSpec extends DefaultRunnableSpec {
 
-  import TestData.*
+
+  import TestData._
 
   private def testEnv(redisStreamMock: ULayer[Has[RedisStream[StreamInstance.Notifications]]]) =
     (redisStreamMock ++ ZLayer.identity[Clock] ++ Logging.ignore) >>> NotificationsEventProducer.redis
@@ -46,15 +46,17 @@ object EventProducerSpec extends DefaultRunnableSpec:
                 failure(new RuntimeException("BOOM"))
               )
 
-          (for
+          (for {
+
             timeBefore <- currentTime(TimeUnit.SECONDS)
             forked     <- NotificationsEventProducer(_.publish(testStreamKey, testEvent)).run.fork
-            _          <- TestClock.adjust(21.seconds) // 3 retries for 3 sec exponential * 2
+            _          <- TestClock.adjust(21.seconds) // 3 retries for 3 sec exponential _ 2
             msg        <- forked.join
             timeAfter  <- currentTime(TimeUnit.SECONDS)
+          }
           yield {
             assert(msg)(fails(isSubtype[RuntimeException](anything))) &&
-            assert(timeAfter - timeBefore)(isGreaterThanEqualTo(21L))
+              assert(timeAfter - timeBefore)(isGreaterThanEqualTo(21L))
           }).provideSomeLayer[TestEnvironment](testEnv(redisStreamMock))
         },
         testM("succeed if can send an event") {
@@ -72,17 +74,22 @@ object EventProducerSpec extends DefaultRunnableSpec:
       )
     )
 
-  private object TestData:
+  private object TestData {
 
     val streamName: StreamName      = StreamName("test-stream")
     val testStreamKey: StreamKey    = StreamKey("create")
     val testEvent: TestEvent        = TestEvent("Important delivery!")
     val testEventBytes: Chunk[Byte] = Chunk.fromArray(testEvent.asBytes)
 
-  final case class TestEvent(msg: String):
-    lazy val asBytes: Array[Byte] = msg.getBytes("UTF-8")
+    final case class TestEvent(msg: String) {
+      lazy val asBytes: Array[Byte] = msg.getBytes("UTF-8")
+    }
+    object TestEvent {
 
-  object TestEvent:
+      implicit val e: EventSerializable[TestEvent] = (e: TestEvent) => e.asBytes
+    }
+  }
 
-    given EventSerializable[TestEvent] =
-      (e: TestEvent) => e.asBytes
+
+
+}

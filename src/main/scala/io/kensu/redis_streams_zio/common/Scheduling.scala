@@ -1,9 +1,9 @@
 package io.kensu.redis_streams_zio.common
 
 import zio.Schedule
-import zio.duration.{Duration, *}
+import zio.duration.{Duration, _}
 
-object Scheduling:
+object Scheduling {
 
   def exponentialBackoff[E](
     min: Duration,
@@ -14,3 +14,5 @@ object Scheduling:
     ((Schedule.exponential(min, factor).whileOutput(_ <= max) `andThen` Schedule.fixed(max)) && maxRecurs
       .map(Schedule.recurs)
       .getOrElse(Schedule.forever)).map(_._2)
+}
+

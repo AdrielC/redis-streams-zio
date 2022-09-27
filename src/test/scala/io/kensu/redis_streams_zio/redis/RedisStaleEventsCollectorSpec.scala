@@ -1,41 +1,42 @@
 package io.kensu.redis_streams_zio.redis
 
-import io.kensu.redis_streams_zio.config.*
+import io.kensu.redis_streams_zio.config._
 import io.kensu.redis_streams_zio.redis.streams.{
-  NotificationsRedisStream,
   RedisStaleEventsCollector,
   RedisStream,
   StreamInstance
 }
 import io.kensu.redis_streams_zio.specs.mocks.NotificationsRedisStreamMock
 import org.redisson.api.{PendingEntry, StreamMessageId}
-import zio.*
+import zio._
 import zio.clock.Clock
 import zio.duration.{durationInt, Duration}
 import zio.logging.Logging
-import zio.test.{DefaultRunnableSpec, *}
-import zio.test.Assertion.*
+import zio.test.{DefaultRunnableSpec, _}
+import zio.test.Assertion._
 import zio.test.environment.{TestClock, TestEnvironment}
-import zio.test.mock.Expectation.*
+import zio.test.mock.Expectation._
 
-object RedisStaleEventsCollectorSpec extends DefaultRunnableSpec:
+object RedisStaleEventsCollectorSpec extends DefaultRunnableSpec {
 
-  import TestData.*
 
-  override val spec: ZSpec[TestEnvironment, Failure] =
-    import zio.duration.*
+  import TestData._
+
+  override val spec: ZSpec[TestEnvironment, Failure] = {
+    import zio.duration._
     suite("RedisZCollector.executeFor")(
       testM("does not begin processing before initial delay") {
         val redisStreamMock =
           NotificationsRedisStreamMock.ListPending(equalTo(config.groupName, 100), value(Chunk.empty)).atMost(0)
 
         val collector = RedisStaleEventsCollector.executeFor[StreamInstance.Notifications, StreamConsumerConfig]()
-        (for
+        (for {
           forked <- collector.fork
           _      <- TestClock.adjust(config.claiming.initialDelay.minusMillis(1))
           _      <- forked.interrupt
+        }
         yield assertCompletes)
-          .provideSomeLayer[TestEnvironment](testEnv(redisStreamMock))
+        .provideSomeLayer[TestEnvironment](testEnv(redisStreamMock))
       },
       testM("begin processing after initial delay") {
         val redisStreamMock =
@@ -43,12 +44,13 @@ object RedisStaleEventsCollectorSpec extends DefaultRunnableSpec:
 
         val collector = RedisStaleEventsCollector.executeFor[StreamInstance.Notifications, StreamConsumerConfig]()
 
-        (for
+        (for {
           forked <- collector.fork
           _      <- TestClock.adjust(config.claiming.initialDelay)
           _      <- forked.interrupt
+        }
         yield assertCompletes)
-          .provideSomeLayer[TestEnvironment](testEnv(redisStreamMock))
+        .provideSomeLayer[TestEnvironment](testEnv(redisStreamMock))
       },
       testM("claim only messages & exceeded idle time from other consumers") {
         val goodEntry                          = new PendingEntry(new StreamMessageId(412323), config.consumerName.value, 1, 0)
@@ -82,12 +84,13 @@ object RedisStaleEventsCollectorSpec extends DefaultRunnableSpec:
 
         val collector = RedisStaleEventsCollector.executeFor[StreamInstance.Notifications, StreamConsumerConfig]()
 
-        (for
+        (for {
           forked <- collector.fork
           _      <- TestClock.adjust(config.claiming.initialDelay)
           _      <- forked.interrupt
+        }
         yield assertCompletes)
-          .provideSomeLayer[TestEnvironment](testEnv(redisStreamMock))
+        .provideSomeLayer[TestEnvironment](testEnv(redisStreamMock))
       },
       testM("claim only half of suitable messages") {
         val exceededIdleTimeEntry1 = new PendingEntry(
@@ -120,12 +123,13 @@ object RedisStaleEventsCollectorSpec extends DefaultRunnableSpec:
 
         val collector = RedisStaleEventsCollector.executeFor[StreamInstance.Notifications, StreamConsumerConfig]()
 
-        (for
+        (for {
           forked <- collector.fork
           _      <- TestClock.adjust(config.claiming.initialDelay)
           _      <- forked.interrupt
+        }
         yield assertCompletes)
-          .provideSomeLayer[TestEnvironment](testEnv(redisStreamMock))
+        .provideSomeLayer[TestEnvironment](testEnv(redisStreamMock))
       },
       testM("can keep repeating the claiming process") {
         val exceededIdleTimeEntry1 = new PendingEntry(
@@ -174,12 +178,13 @@ object RedisStaleEventsCollectorSpec extends DefaultRunnableSpec:
             Some(Schedule.once)
           )
 
-        (for
+        (for {
           forked <- collector.fork
           _      <- TestClock.adjust(config.claiming.initialDelay)
           _      <- forked.join
+        }
         yield assertCompletes)
-          .provideSomeLayer[TestEnvironment](testEnv(redisStreamMock))
+        .provideSomeLayer[TestEnvironment](testEnv(redisStreamMock))
       },
       testM("acknowledge only messages with exceeded number of deliveries") {
         val goodEntry                          = new PendingEntry(new StreamMessageId(412323), config.consumerName.value, 1, 0)
@@ -211,15 +216,18 @@ object RedisStaleEventsCollectorSpec extends DefaultRunnableSpec:
 
         val collector = RedisStaleEventsCollector.executeFor[StreamInstance.Notifications, StreamConsumerConfig]()
 
-        (for
+        (for {
+
           forked <- collector.fork
           _      <- TestClock.adjust(config.claiming.initialDelay)
           _      <- forked.interrupt
+        }
         yield assertCompletes)
-          .provideSomeLayer[TestEnvironment](testEnv(redisStreamMock))
+        .provideSomeLayer[TestEnvironment](testEnv(redisStreamMock))
       },
       testM("can keep repeating the acknowledge process") {
-        val goodEntry                          = new PendingEntry(new StreamMessageId(412323), config.consumerName.value, 1, 0)
+        val goodEntry                          = new PendingEntry(new StreamMessageId(412323),
+          config.consumerName.value, 1, 0)
         val otherConsumerExceededIdleTimeEntry = new PendingEntry(
           new StreamMessageId(65456345),
           "other-consumer",
@@ -258,19 +266,21 @@ object RedisStaleEventsCollectorSpec extends DefaultRunnableSpec:
         val collector = RedisStaleEventsCollector
           .executeFor[StreamInstance.Notifications, StreamConsumerConfig](Some(Schedule.once))
 
-        (for
+        (for  {
           forked <- collector.fork
           _      <- TestClock.adjust(config.claiming.initialDelay)
           _      <- forked.join
+        }
         yield assertCompletes)
-          .provideSomeLayer[TestEnvironment](testEnv(redisStreamMock))
+        .provideSomeLayer[TestEnvironment](testEnv(redisStreamMock))
       }
     ) @@ TestAspect.timeout(30.seconds)
+  }
 
   private def testEnv(redisStreamMock: ULayer[Has[RedisStream[StreamInstance.Notifications]]]) =
     ZLayer.succeed(config) ++ redisStreamMock ++ ZLayer.identity[Clock] ++ Logging.ignore
 
-  private object TestData:
+  private object TestData {
 
     val config: StreamConsumerConfig = new StreamConsumerConfig {
 
@@ -292,3 +302,5 @@ object RedisStaleEventsCollectorSpec extends DefaultRunnableSpec:
       override val groupName: StreamGroupName       = StreamGroupName("test-stream-group-name")
       override val consumerName: StreamConsumerName = StreamConsumerName("test-stream-consumer-name")
     }
+  }
+}

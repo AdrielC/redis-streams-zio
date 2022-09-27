@@ -1,6 +1,8 @@
 import Common._
 import Dependencies._
 
+Global / onChangedBuildSource := IgnoreSourceChanges
+
 lazy val root =
   (project in file(".")).commonSettings.scalafmtSettings
     .settings(

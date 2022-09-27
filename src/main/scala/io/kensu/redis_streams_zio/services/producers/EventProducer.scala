@@ -2,29 +2,30 @@ package io.kensu.redis_streams_zio.services.producers
 
 import io.kensu.redis_streams_zio.config.StreamKey
 import io.kensu.redis_streams_zio.redis.streams.{RedisStream, StreamInstance}
-import io.kensu.redis_streams_zio.redis.streams.NotificationsRedisStream
-import zio.*
+import zio._
 import zio.Schedule.Decision
 import zio.clock.Clock
-import zio.duration.*
+import zio.duration._
 import zio.logging.{Logger, Logging}
 
-trait EventSerializable[E]:
+trait EventSerializable[E] {
+
   def serialize(e: E): Array[Byte]
+}
 
-object EventSerializable:
+object EventSerializable {
 
-  def apply[E](using es: EventSerializable[E]): EventSerializable[E] = es
 
-  given EventSerializable[String] =
+  def apply[E](implicit es: EventSerializable[E]): EventSerializable[E] = es
+
+  implicit val eString: EventSerializable[String] =
     (e: String) => e.getBytes("UTF-8")
+}
 
-opaque type PublishedEventId = String
+case class PublishedEventId(value: String)
 
-object PublishedEventId:
-  def apply(value: String): PublishedEventId = value
+trait EventProducer[S <: StreamInstance] {
 
-trait EventProducer[S <: StreamInstance]:
 
   /**
    * Publishes a message.
@@ -37,16 +38,17 @@ trait EventProducer[S <: StreamInstance]:
    * @return
    *   a computed message id
    */
-  def publish[E: EventSerializable: Tag](
-    streamKey: StreamKey,
-    event: E
+  def publish[E: EventSerializable: Tag]
+  (streamKey: StreamKey,
+   event: E
   ): Task[PublishedEventId]
+}
 
 final case class RedisEventProducer[S <: StreamInstance: Tag](
   stream: RedisStream[S],
   clock: Clock.Service,
   log: Logger[String]
-) extends EventProducer[S]:
+) extends EventProducer[S] {
 
   private val env = Has(clock)
 
@@ -72,12 +74,14 @@ final case class RedisEventProducer[S <: StreamInstance: Tag](
 
       send.retry(retryPolicy).provide(env)
     }
+}
 
 /** An additional, stream instance predefined definition for easier API usage and future refactoring. */
-object NotificationsEventProducer extends Accessible[EventProducer[StreamInstance.Notifications]]:
+object NotificationsEventProducer extends Accessible[EventProducer[StreamInstance.Notifications]] {
 
   val redis: URLayer[
     Has[RedisStream[StreamInstance.Notifications]] & Clock & Logging,
     Has[EventProducer[StreamInstance.Notifications]]
-  ] =
-    (RedisEventProducer[StreamInstance.Notifications](_, _, _)).toLayer
+  ] = (RedisEventProducer[StreamInstance.Notifications](_, _, _)).toLayer
+}
+

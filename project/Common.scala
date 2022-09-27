@@ -2,6 +2,7 @@ import org.scalafmt.sbt.ScalafmtPlugin
 import org.scalafmt.sbt.ScalafmtPlugin.autoImport._
 import sbt.Keys._
 import sbt._
+import sbt.nio.Keys.{IgnoreSourceChanges, onChangedBuildSource}
 
 object Common {
 
@@ -11,13 +12,7 @@ object Common {
     "-unchecked",
     "-deprecation",
     "-feature",
-    "-Werror",
-    "-explain",
-    "-new-syntax", // First we need to use -new-syntax with rewrite, in the 2nd step 3.0-migration // Require `then` and `do` in control expressions.
-//    "-indent", // Once done, comment out // Together with -rewrite, remove {...} syntax when possible due to significant indentation.
-//    "-rewrite",
-    "-source:future-migration" // Supports given/using etc.
-    // "-language:strictEquality"
+    "-Werror"
   )
 
   implicit class ProjectFrom(project: Project) {
@@ -27,7 +22,7 @@ object Common {
         .settings(
           organization := "io.kensu",
           name := "redis-streams-zio",
-          scalaVersion := "3.1.3",
+          scalaVersion := "2.13.9",
           version := "1.0.0-SNAPSHOT",
           scalacOptions ++= commonScalacOptions,
           Compile / console / scalacOptions --= Seq("-Werror"),
