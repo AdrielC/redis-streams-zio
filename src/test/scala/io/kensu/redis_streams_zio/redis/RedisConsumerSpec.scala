@@ -107,7 +107,7 @@ object RedisConsumerSpec extends DefaultRunnableSpec {
       },
       testM("get PENDING messages initially, keep asking till asked for all and then ask for NEW messages") {
         checkAllM(promise, redisData(streamKey), redisData(streamKey)) {
-          (shutdownHook, redisData1, redisData2) =>
+          case (shutdownHook, redisData1, redisData2) =>
             val redisStreamMock =
               NotificationsRedisStreamMock.ListGroups(
                 value(Chunk(new StreamGroup(config.groupName.value, 0, 0, null)))
@@ -143,7 +143,7 @@ object RedisConsumerSpec extends DefaultRunnableSpec {
       },
       testM("do not process the same PENDING messages in case they cannot be acknowledged") {
         checkAllM(promise, redisData(streamKey), redisData(streamKey)) {
-          (shutdownHook, redisData1, redisData2) =>
+          case (shutdownHook, redisData1, redisData2) =>
             val redisStreamMock =
               NotificationsRedisStreamMock.ListGroups(
                 value(Chunk(new StreamGroup(config.groupName.value, 0, 0, null)))
@@ -169,7 +169,7 @@ object RedisConsumerSpec extends DefaultRunnableSpec {
       },
       testM("keep getting NEW messages") {
         checkAllM(promise, redisData(streamKey), redisData(streamKey)) {
-          (shutdownHook, redisData1, redisData2) =>
+          case (shutdownHook, redisData1, redisData2) =>
             val redisStreamMock =
               NotificationsRedisStreamMock.ListGroups(
                 value(Chunk(new StreamGroup(config.groupName.value, 0, 0, null)))
